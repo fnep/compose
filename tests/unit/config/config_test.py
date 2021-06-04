@@ -1083,6 +1083,34 @@ class ConfigTest(unittest.TestCase):
         assert 'foo' in service['build']['args']
         assert service['build']['args']['foo'] == '0'
 
+    def test_inline_dockerfile(self):
+        service = config.load(
+            build_config_details(
+                {
+                    'version': '3.8',
+                    'services': {
+                        'web': {
+                            'build': {
+                                'context': '.',
+                                'dockerfile': [
+                                    "FROM busybox",
+                                    "RUN echo something",
+                                    "CMD top",
+                                ],
+                            }
+                        }
+                    }
+                },
+                'tests/fixtures/extends',
+                'filename.yml'
+            )
+        ).services
+        assert isinstance(service[0]['build']['dockerfile'], list)
+        assert len(service[0]['build']['dockerfile']) == 3
+        assert "FROM busybox" in service[0]['build']['dockerfile']
+        assert "RUN echo something" in service[0]['build']['dockerfile']
+        assert "CMD top" in service[0]['build']['dockerfile']
+
     def test_load_with_multiple_files_mismatched_networks_format(self):
         base_file = config.ConfigFile(
             'base.yaml',

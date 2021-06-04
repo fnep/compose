@@ -1873,7 +1873,8 @@ class _CLIBuilder:
             custom_context (bool): Optional if using ``fileobj``
             decode (bool): If set to ``True``, the returned stream will be
                 decoded into dicts on the fly. Default ``False``
-            dockerfile (str): path within the build context to the Dockerfile
+            dockerfile (str | :py:class:`list`): path within the build context
+                to the Dockerfile or content
             encoding (str): The encoding for a stream. Set to ``gzip`` for
                 compressing
             extra_hosts (dict): Extra hosts to add to /etc/hosts in building
@@ -1910,14 +1911,11 @@ class _CLIBuilder:
         Returns:
             A generator for the build output.
         """
-        if dockerfile and os.path.isdir(path):
-            dockerfile = os.path.join(path, dockerfile)
         iidfile = tempfile.mktemp()
 
         command_builder = _CommandBuilder()
         command_builder.add_params("--build-arg", buildargs)
         command_builder.add_list("--cache-from", cache_from)
-        command_builder.add_arg("--file", dockerfile)
         command_builder.add_flag("--force-rm", forcerm)
         command_builder.add_params("--label", labels)
         command_builder.add_arg("--memory", container_limits.get("memory"))
@@ -1931,6 +1929,16 @@ class _CLIBuilder:
         command_builder.add_arg("--platform", platform)
         command_builder.add_arg("--isolation", isolation)
 
+        stdin = None
+        if dockerfile:
+            if isinstance(dockerfile, list):
+                stdin = '\n'.join(dockerfile)
+                command_builder.add_arg("--file", "-")
+            elif isinstance(dockerfile, str):
+                if os.path.isdir(path):
+                    dockerfile = os.path.join(path, dockerfile)
+                command_builder.add_arg("--file", dockerfile)
+
         if extra_hosts:
             if isinstance(extra_hosts, dict):
                 extra_hosts = ["{}:{}".format(host, ip) for host, ip in extra_hosts.items()]
@@ -1939,9 +1947,12 @@ class _CLIBuilder:
 
         args = command_builder.build([path])
 
-        with subprocess.Popen(args, stdout=output_stream, stderr=sys.stderr,
+        with subprocess.Popen(args,
+                              stdin=subprocess.PIPE if stdin else None,
+                              stdout=output_stream,
+                              stderr=sys.stderr,
                               universal_newlines=True) as p:
-            p.communicate()
+            p.communicate(stdin)
             if p.returncode != 0:
                 raise BuildError(service, "Build failed")
 

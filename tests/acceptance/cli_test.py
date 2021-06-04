@@ -925,6 +925,11 @@ services:
         assert 'Successfully tagged build-multiple-composefile_b:latest' in result.stdout
         assert 'Successfully built' in result.stdout
 
+    def test_build_inline_dockerfile(self):
+        self.base_dir = 'tests/fixtures/build-inline-dockerfile'
+        result = self.dispatch(['build', 'foo'])
+        assert 'sOmEtHiNg' in result.stdout
+
     def test_create(self):
         self.dispatch(['create'])
         service = self.project.get_service('simple')

@@ -1,0 +1,9 @@
+version: "3.8"
+services:
+
+  foo:
+    build:
+      context: .
+      dockerfile:
+        - FROM busybox
+        - RUN echo sOmEtHiNg
